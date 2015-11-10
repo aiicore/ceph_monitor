@@ -1,9 +1,7 @@
 # ceph_monitor
 Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
 
-###############################################################################
-                     MONITOR CEPH WITH PYTHON REMOTELY
-###############################################################################
+                      MONITOR CEPH WITH PYTHON REMOTELY
 
   1. How it works?
   2. Required packages
@@ -18,10 +16,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
   7. New features
   8. Performance impact
   
-
-###############################################################################
-  1. How it works?
-###############################################################################
+1. How it works?
 
   Tool relies on Parallel Python http://www.parallelpython.com "PP" in short.
 
@@ -31,10 +26,10 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
 
   PP is solution mostly used in clustering scenarios, like this:
 
-                                 |> node1
-  Client > one2many connection >-|> node2
-                                 |> node3
-                                 |> ....
+                                 .. node1
+  Client . one2many connection . .. node2
+                                 .. node3
+                                 .. .....
 
   Client don't know on which node submited function is executing.
 
@@ -43,18 +38,16 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
   scheduling functions on specified node:
 
 
-           |> one2one connection > - > node1
-  Client >-|> one2one connection > - > node2
-           |> one2one connection > - > node3
-           |> one2one connection > - > ....
+           .. one2one connection .. node1
+  Client . .. one2one connection .. node2
+           .. one2one connection .. node3
+           .. one2one connection .. .....
 
   
   Client exactly know on which node function is execued.
 
 
-###############################################################################
-  2. Required packages
-###############################################################################
+2. Required packages
 
   "python-pp" contanins Parallel Python libraries and bindings, should be avail
   in standard repo of your Linux distro.
@@ -69,9 +62,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
   - Parallel Python Network Server (pp-1.5.7)
   - psutil 0.6.1
   
-###############################################################################
-  3. Installation
-###############################################################################
+3. Installation
 
   For CentOs 6.6:
 
@@ -79,9 +70,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
 
   You should install it on client and every node in your cluster.
   
-###############################################################################
-  4. Usage & exmaples
-###############################################################################
+4. Usage & exmaples
 
   On every node in your cluster, you must start parallel python server process.
   Most usable way is to run it on screen/tmux terminal multiplexer, so it'll
@@ -150,9 +139,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
 
     client > ./ppmon.py
 
-  #############################################################################
-    4.1 Memory mode
-  #############################################################################
+4.1 Memory mode
  
     If you're in another mode, swich to memory mode by typing into console:
       m
@@ -179,9 +166,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
       # x 10M - RSS represented as hash sign, each one is 10 megabytes
 
  
-  #############################################################################
-    4.2 IO mode
-  #############################################################################
+4.2 IO mode
 
     If you're in another mode, swich to memory mode by typing into console:
       i
@@ -213,9 +198,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
     More explanation about those factors, can be found in man proc.
 
 
-  #############################################################################
-    4.3 CPU mode
-  #############################################################################
+4.3 CPU mode
 
     If you're in another mode, swich to memory mode by typing into console:
       c
@@ -235,9 +218,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
     CTX_I - cpu involuntary context switches
     CTX_V - cpu voluntary context switches  
 
-  #############################################################################
-    4.4 Command line options
-  #############################################################################
+4.4 Command line options
 
 
     Most of the command line options are static, except '--zone'. Choices for
@@ -271,19 +252,17 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
     # there is no need to track them at realtime
     ./ppmon --quiet --mode c --batch --label "Ceph staring"
 
-    -- wiait for health ok ---
+    -- wait for health ok ---
 
     ./ppmon --quiet --mode c --batch --label "Ceph started"
 
     -- wait a while then kill all ppmon's --
 
-    # plote charts using gnuplot
+    # plote charts with labels using gnuplot
     ./plote ppmon.db "2015-11-06 08:48:00" "2015-11-06 09:00:00"
 
 
-###############################################################################
-  5. Log data to sqlite
-###############################################################################
+5. Log data to sqlite
 
   If you don't pass --nodb option, by default data is collected into sqlite
   database.
@@ -326,9 +305,7 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
     );
 
 
-###############################################################################
-  6. Plot data with gnuplot
-###############################################################################
+6. Plot data with gnuplot
 
   ./plote is a script in bash, who runs gnuplot inside and generates graphs
   directly from sqlite database.
@@ -336,18 +313,14 @@ Simple tool in Python to help monitoring ram/cpu/io usage around ceph.
   Graphs are saved as png files.
 
 
-###############################################################################
-  7. New features
-###############################################################################
+7. New features
 
   This tool should be able to run any code at node side, so please feel free
   to modify this tool and add new fatures. For example you could manipulate
   ionice by psutil from client, only on specified osd zone.
 
 
-###############################################################################
-  8. Performance impact
-###############################################################################
+8. Performance impact
   
   ppserver spawns as many ppworker processes as your logical cpu core count is.
 
