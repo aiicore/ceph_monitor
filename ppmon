@@ -1,0 +1,325 @@
+#!/usr/bin/python
+import pp
+import time
+import sys
+import select
+import ConfigParser
+import os
+import argparse
+import sqlite3
+from string import maketrans
+
+###############################################################################
+# Local functions                                                             #
+###############################################################################
+translate_parenthesis = maketrans('[]', '()')
+def log_into_db(sql_conn, mode, node_stat, label=""):
+  cursor = sql_conn.cursor()
+  cursor.execute("INSERT INTO header(mode, timestamp, label) VALUES('%c', '%d', '%s')" % (mode, int(time.time()), label))
+  id = cursor.lastrowid
+  for key in node_stat:
+    if show_process(key):
+      data = node_stat[key]
+      insert_columns = [ col for col in data ]
+
+      insert_values = [ '%s' % data[col] for col in insert_columns ]
+
+      insert_columns.append('key');
+      insert_columns.append('header_id');
+      insert_values.append(key)
+      insert_values.append(id)
+
+      insert_str = "INSERT INTO %c" % mode + (str(insert_columns)).translate(translate_parenthesis) + \
+                   " VALUES " + \
+                   str(insert_values).translate(translate_parenthesis)
+      cursor.execute(insert_str)
+  sql_conn.commit()
+  cursor.close()
+
+
+def show_process(key):
+  if [1 for proc in proc_filter if key[:3] in proc] or int(key[-2:]) in show_stats_for:
+    return 1
+  return 0
+
+
+# show memory stat
+def stat_mem(node_stat):
+  rss_sum = 0
+  print 'PROC         MINOR    MAJOR           RSS  # x 10M'
+  s_sum = {}
+  s_sum['min_f'] = 0
+  s_sum['maj_f'] = 0
+  s_sum['rss'] = 0
+  for key in sorted(node_stat):
+    if show_process(key):
+      print '{0} {1:>10}   {2:>6}    {3:>10}  {4:<}'. format(
+             key,
+             node_stat[key]['min_f'],
+             node_stat[key]['maj_f'],
+             node_stat[key]['rss'],                       # one '#' is 10 MB
+             "#" * (node_stat[key]['rss'] / 1024 / 1024 / 10)
+      )
+      rss_sum += node_stat[key]['rss']
+      s_sum['min_f'] += int(node_stat[key]['min_f'])
+      s_sum['maj_f'] += int(node_stat[key]['maj_f'])
+      s_sum['rss']   += node_stat[key]['rss']
+  print 'Sum: {0:>13} {1:>8} {2:>13}  {3} MB'.format(s_sum['min_f'], s_sum['maj_f'],
+                                                        s_sum['rss'], s_sum['rss'] / 1024 / 1024)
+
+# show io stat
+def stat_io(node_stat):
+  print 'PROC              read()      read_bytes         write()     write_bytes'
+  s_sum = {}
+  s_sum['io_rd'] = 0
+  s_sum['io_rb'] = 0
+  s_sum['io_wr'] = 0
+  s_sum['io_wb'] = 0
+  for key in sorted(node_stat):
+    if show_process(key):
+      print '{0}    {1:>13}   {2:>13}   {3:>13}   {4:>13}'. format(
+             key,
+             node_stat[key]['io_rd'],
+             node_stat[key]['io_rb'],
+             node_stat[key]['io_wr'],
+             node_stat[key]['io_wb']
+      )
+      s_sum['io_rd'] += node_stat[key]['io_rd']
+      s_sum['io_rb'] += node_stat[key]['io_rb']
+      s_sum['io_wr'] += node_stat[key]['io_wr']
+      s_sum['io_wb'] += node_stat[key]['io_wb']
+  print 'Sum      {0:>15} {1:>15} {2:>15} {3:>15}'.format(s_sum['io_rd'], s_sum['io_rb'],
+                                                          s_sum['io_wr'], s_sum['io_wb'])
+
+
+# show cpu time
+def stat_cpu(node_stat):
+  print 'PROC     CTX_I  CTX_V    CPU usr     CPU sys'
+  s_sum = {}
+  s_sum['ctx_i'] = 0
+  s_sum['ctx_v'] = 0
+  s_sum['cpu_usr'] = 0
+  s_sum['cpu_sys'] = 0
+  for key in sorted(node_stat):
+    if show_process(key):
+      print '%s  %5d  %5d  %09.4f   %09.4f' % (
+             key,
+             node_stat[key]['ctx_i'],
+             node_stat[key]['ctx_v'],
+             node_stat[key]['cpu_usr'],
+             node_stat[key]['cpu_sys']
+      )
+    s_sum['ctx_i']    += node_stat[key]['ctx_i']
+    s_sum['ctx_v']    += node_stat[key]['ctx_v']
+    s_sum['cpu_usr']  += node_stat[key]['cpu_usr']
+    s_sum['cpu_sys']  += node_stat[key]['cpu_sys']
+  print 'Sum     %6d %6d %10.4f  %10.4f' % (s_sum['ctx_i'], s_sum['ctx_v'],
+                                            s_sum['cpu_usr'], s_sum['cpu_sys'])
+
+
+# parse ranges in config file
+def get_range(s):
+  ret = []
+  if ' ' not in s and '-' not in s:
+    ret.append(s)
+    return ret
+
+  for p1 in s.split(' '):
+    if '-' in p1:
+      p2 = p1.split('-')
+      ret.extend(range(int(p2[0]), int(p2[1]) + 1) )
+    else:
+      ret.extend(p1)
+  return ret
+
+
+###############################################################################
+# Remote functions                                                            #
+###############################################################################
+# fetch data from node
+def remote_mon(mode, track_process):
+  node_stat = {}
+  for proc in psutil.process_iter():
+    if proc.name in track_process:
+      try:
+        key = "%s %03d" % (proc.name[-3:],int(proc.cmdline[2]))
+      except psutil.NoSuchProcess:
+        continue
+      if mode == 'm':
+        mem_page_flt = open('/proc/%d/stat' % proc.pid).readline().split()[9:12]
+        node_stat[key] = {
+          'rss'  : proc.get_memory_info().rss,
+          'min_f': mem_page_flt[0],
+          'maj_f': mem_page_flt[2],
+        }
+      elif mode == 'i': 
+        node_stat[key] = {
+          'io_rd': proc.get_io_counters().read_count,
+          'io_rb': proc.get_io_counters().read_bytes,
+          'io_wr': proc.get_io_counters().write_count,
+          'io_wb': proc.get_io_counters().write_bytes,
+        }
+      elif mode == 'c': 
+        node_stat[key] = {
+          'ctx_i': proc.get_num_ctx_switches().involuntary,
+          'ctx_v': proc.get_num_ctx_switches().voluntary,
+          'cpu_usr': proc.get_cpu_times().user,
+          'cpu_sys': proc.get_cpu_times().system,
+        }
+
+  return node_stat
+
+
+
+###############################################################################
+# MAIN parameters                                                             #
+###############################################################################
+conf = ConfigParser.RawConfigParser()
+conf.read("ppmon.conf")
+
+zones = {}
+for zone in conf.items("zones"):
+  zones[zone[0]] = get_range(zone[1])
+
+show_stats_for = []
+for i in conf.get("main", "show_stats_for").split(' '):
+  show_stats_for.extend( zones[i] )
+
+node_list = conf.get("connections", "nodes").split(' ')
+proc_list = conf.get("main", "processes").split(' ')
+dbfile = conf.get("main", "dbfile")
+dbschema = conf.get("main", "dbschema")
+
+proc_filter = [ p for p in proc_list if "osd" not in p ]
+
+
+###############################################################################
+# MAIN start                                                                  #
+###############################################################################
+# default settings
+mode = 'm'
+run_once = 0
+quiet = 0
+delay = 1
+label = ""
+
+###############################################################################
+# MAIN parse arguments                                                        #
+###############################################################################
+parser = argparse.ArgumentParser()
+parser.add_argument('--mode', choices=['m', 'i', 'c'], help='m:Memory, i:IO counter c:CPU time and context')
+parser.add_argument('--zone', choices=[zone[0] for zone in conf.items("zones")], help='zone filter (defined in config file)')
+parser.add_argument('--nodb', help='disable logging to database', action='store_true')
+parser.add_argument('--batch', help='one shot', action='store_true')
+parser.add_argument('--quiet', help='don\'t print on console', action='store_true')
+parser.add_argument('--delay', help='refresh delay in seconds')
+parser.add_argument('--label', help='add label to header (for sqlite)')
+args = parser.parse_args()
+
+if args.mode != None:
+  mode = args.mode
+
+if args.zone != None:
+  show_stats_for = []
+  show_stats_for.extend(zones[args.zone])
+
+if args.nodb:
+  dbfile = None
+
+if args.batch:
+  run_once = 1 
+
+if dbfile:
+  # ope/create sqlite database
+  sql_conn = sqlite3.connect(dbfile)
+  cursor_init = sql_conn.cursor()
+
+  # create schema if database file did not exits
+  cursor_init.executescript(open(dbschema, 'rb').read())
+
+  sql_conn.commit()
+  cursor_init.close()
+
+if args.quiet:
+  quiet = 1
+
+if args.delay != None:
+  delay = args.delay
+
+if args.label != None:
+  label = args.label
+
+
+
+###############################################################################
+# MAIN body                                                                   #
+###############################################################################
+# create connection to workers
+nodes = []
+for node in node_list:
+  nodes.append(pp.Server(ppservers=(node,)))
+
+# give some time to connect
+#time.sleep(1)
+
+# allowed options (mapping to local functions)
+options = { 'i' : stat_io,
+            'm' : stat_mem,
+            'c' : stat_cpu,
+          }
+
+# main loop
+try:
+  while(1):
+    if not quiet:
+      # get char in non blocking way
+      for stream in select.select([sys.stdin],[],[],0.0001)[0]:
+        if stream == sys.stdin:
+          chr = sys.stdin.read(1);
+          if chr in list(options):
+            mode = chr
+
+    # submit job to workers
+    workers = []
+    for node in nodes:
+      # disable local (mgmt) dispatch
+      node.set_ncpus(0)
+
+      # job submit, job result will be in workers array
+      workers.append(node.submit(remote_mon, (mode, proc_list), (), ("psutil",)))
+
+    # result statistics set
+    node_stat = {}
+
+    # join information form all nodes
+    for worker in workers:
+      node_stat.update(worker())
+
+    # present data on the screen
+    if not quiet:
+      os.system("clear")
+      options[mode](node_stat)
+
+    # log everything to sqlite3 database
+    if dbfile:
+      log_into_db(sql_conn, mode, node_stat, label)
+
+    # refresh interval
+    time.sleep(float(delay))
+
+    if run_once:
+      raise KeyboardInterrupt
+except KeyboardInterrupt:
+  print "Ctrl c, finishing ..."
+  pass
+
+for node in nodes:
+  node.destroy()
+
+if (dbfile):
+  sql_conn.commit()
+  sql_conn.close()
+
+# wait to close all sockets
+#time.sleep(5)
+

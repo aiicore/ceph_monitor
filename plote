@@ -1,0 +1,113 @@
+#!/bin/bash
+
+
+dbfile="$1"
+begin="$2"
+end="$3"
+
+if [ -z "$dbfile" ] || [ -z "$begin" ] || [ -z "$end" ]; then
+  echo "Use with $0 ppmon.db  \"YYYY-MM-DD HH:MM:SS\" \"YYYY-MM-DD HH:MM:SS\""
+  echo "\te.g. $0 tests_1.db \"2015-11-09 12:00:00\" \"2015-11-09 13:50:00\""
+  exit;
+fi;
+
+
+begin="'$begin'"
+end="'$end'"
+
+set -u 
+
+gnuplot  << EOF
+
+set datafile separator "|"
+set style data lines
+set terminal png size 4096, 1024
+
+set autoscale y
+set y2tics
+
+set xdata time
+set xlabel "Date/time"
+set timefmt '%Y-%m-%d %H:%M:%S'
+set format x "%b %d\n%H:%M:%S"
+
+set grid ytics lt 0 lw 1 lc rgb "#eeeeee"
+set grid xtics lt 0 lw 1 lc rgb "#eeeeee"
+set grid mytics lt 0 lw 1 lc rgb "#bbbbbb"
+set grid mxtics lt 0 lw 1 lc rgb "#bbbbbb"
+
+set xrange [$begin : $end]
+
+set output "avg_cpu.png"
+set ylabel "CPU time"
+set y2label "Context switch"
+set title "Average cpu time and contex switch"
+plot "< sqlite3 $dbfile 'select datetime, context_i, context_v, cpu_user_time, cpu_system_time, label from avg_c;'" \
+    u 1:2 axes x1y2 t 'Invvoluntary' with lines , "" \
+    u 1:3 axes x1y2 t 'Volvoluntary' with lines, "" \
+    u 1:4 t 'Cpu user time'   lw 2, "" \
+    u 1:5 t 'Cpu system time' lw 2, "" \
+    u 1:5:6 w labels offset 0,1 rotate left notitle
+
+set output "sum_cpu.png"
+set ylabel "CPU time"
+set y2label "Context switch"
+set title "Accumulated cpu time and contex switch"
+plot "< sqlite3 $dbfile 'select datetime, context_i, context_v, cpu_user_time, cpu_system_time, label from sum_c;'" \
+    u 1:2 axes x1y2 t 'Invvoluntary' with lines , "" \
+    u 1:3 axes x1y2 t 'Volvoluntary' with lines, "" \
+    u 1:4 t 'Cpu user time'   lw 2, "" \
+    u 1:5 t 'Cpu system time' lw 2, "" \
+    u 1:5:6 w labels offset 0,1 rotate left notitle
+
+set output "avg_cpu_mem.png"
+set ylabel "CPU time"
+set y2label "Memory usage in MB"
+set title "Average cpu time and memory usage"
+plot "< sqlite3 $dbfile 'select datetime, cpu_user_time, cpu_system_time, label from avg_c;'" \
+    u 1:2 t 'Cpu user time'   lw 2, "" \
+    u 1:3 t 'Cpu system time' lw 2, "" \
+    u 1:3:4 w labels offset 0,1 rotate left notitle, \
+     "< sqlite3 stats.db 'select datetime, resident_size_MB from avg_m;'" \
+    u 1:2 axis x1y2 t 'Rss'
+
+set output "sum_cpu_mem.png"
+set ylabel "CPU time"
+set y2label "Memory usage in MB"
+set title "Accumulated cpu time and memory usage"
+plot "< sqlite3 $dbfile 'select datetime, cpu_user_time, cpu_system_time, label from sum_c;'" \
+    u 1:2 t 'Cpu user time'   lw 2, "" \
+    u 1:3 t 'Cpu system time' lw 2, "" \
+    u 1:3:4 w labels offset 0,1 rotate left notitle, \
+     "< sqlite3 stats.db 'select datetime, resident_size_MB from sum_m;'" \
+    u 1:2 axis x1y2 t 'Rss'
+
+set output "multi_avg_cpu_mem_io.png"
+set multiplot
+
+set size 0.5, 1
+set origin 0, 0
+set ylabel "CPU time"
+set title "Average cpu time and memory usage"
+plot "< sqlite3 $dbfile 'select datetime, cpu_user_time, cpu_system_time, label from avg_c;'" \
+    u 1:2 t 'Cpu user time'   lw 2, "" \
+    u 1:3 t 'Cpu system time' lw 2, "" \
+    u 1:3:4 w labels offset 0,1 rotate left notitle, \
+     "< sqlite3 stats.db 'select datetime, resident_size_MB from avg_m;'" \
+    u 1:2 axis x1y2 t 'Rss'
+
+set size 0.5, 1
+set origin 0.5, 0
+
+set y2label "Read"
+set ylabel "Write"
+set title "Average IO counters"
+plot "< sqlite3 $dbfile 'select datetime, reads, read_bytes, writes, write_bytes, label from avg_i;'" \
+    u 1:2 axes x1y2  t 'read()' lw 3, "" \
+    u 1:3 axes x1y2 t 'read bytes' lw 3, "" \
+    u 1:4 t 'write()', "" \
+    u 1:5 t 'write bytes',  "" \
+    u 1:5:6 w labels offset 0,1 rotate left notitle
+
+unset multiplot
+EOF
