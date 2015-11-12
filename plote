@@ -41,7 +41,7 @@ set xrange [$begin : $end]
 set output "avg_cpu.png"
 set ylabel "CPU time"
 set y2label "Context switch"
-set title "Average cpu time and contex switch"
+set title "Average cpu time and context switch"
 plot "< sqlite3 $dbfile 'select datetime, context_i, context_v, cpu_user_time, cpu_system_time, label from avg_c;'" \
     u 1:2 axes x1y2 t 'Invvoluntary' with lines , "" \
     u 1:3 axes x1y2 t 'Volvoluntary' with lines, "" \
@@ -52,7 +52,7 @@ plot "< sqlite3 $dbfile 'select datetime, context_i, context_v, cpu_user_time, c
 set output "sum_cpu.png"
 set ylabel "CPU time"
 set y2label "Context switch"
-set title "Accumulated cpu time and contex switch"
+set title "Accumulated cpu time and context switch"
 plot "< sqlite3 $dbfile 'select datetime, context_i, context_v, cpu_user_time, cpu_system_time, label from sum_c;'" \
     u 1:2 axes x1y2 t 'Invvoluntary' with lines , "" \
     u 1:3 axes x1y2 t 'Volvoluntary' with lines, "" \
