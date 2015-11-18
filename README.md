@@ -39,7 +39,7 @@ You can switch views by typing i,c,m and then hit enter.
   mon 002      0     77  0070.9800   0041.9000
 ```
 
-Data can be gathered in sqlite database and ploted with gnuplot.
+Data can be gathered in sqlite database and ploted with gnuplot: https://raw.githubusercontent.com/aiicore/ceph_monitor/master/examples/avg_cpu_mem.png
 
 Look for details in /readme.txt.
 
