@@ -8,7 +8,7 @@ This python script finds every osd/monitor proces on defined hosts
 
 Currently you can monitor memory, cpu and io counters.
 
-Data can be displayed in realtime in console:
+Statistics can be displayed from all defined osds (from whole cluster) on terminal in realtime:
 
 ```
   PROC         MINOR    MAJOR           RSS  # x 10M
