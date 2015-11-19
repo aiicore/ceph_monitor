@@ -9,6 +9,14 @@ import argparse
 import sqlite3
 from string import maketrans
 
+__author__ = "Igor Podoski"
+__copyright__ = "Copyright (C) 2015 Igor Podoski"
+__license__ = "GPL"
+__version__ = "0.1"
+__email__ = "Igor.Podoski@ts.fujitsu.com"
+__status__ = "Test/Dev"
+
+
 ###############################################################################
 # Local functions                                                             #
 ###############################################################################
