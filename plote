@@ -68,7 +68,7 @@ plot "< sqlite3 $dbfile 'select datetime, cpu_user_time, cpu_system_time, label 
     u 1:2 t 'Cpu user time'   lw 2, "" \
     u 1:3 t 'Cpu system time' lw 2, "" \
     u 1:3:4 w labels offset 0,1 rotate left notitle, \
-     "< sqlite3 stats.db 'select datetime, resident_size_MB from avg_m;'" \
+     "< sqlite3 $dbfile 'select datetime, resident_size_MB from avg_m;'" \
     u 1:2 axis x1y2 t 'Rss'
 
 set output "sum_cpu_mem.png"
@@ -79,7 +79,7 @@ plot "< sqlite3 $dbfile 'select datetime, cpu_user_time, cpu_system_time, label 
     u 1:2 t 'Cpu user time'   lw 2, "" \
     u 1:3 t 'Cpu system time' lw 2, "" \
     u 1:3:4 w labels offset 0,1 rotate left notitle, \
-     "< sqlite3 stats.db 'select datetime, resident_size_MB from sum_m;'" \
+     "< sqlite3 $dbfile 'select datetime, resident_size_MB from sum_m;'" \
     u 1:2 axis x1y2 t 'Rss'
 
 set output "multi_avg_cpu_mem_io.png"
@@ -93,7 +93,7 @@ plot "< sqlite3 $dbfile 'select datetime, cpu_user_time, cpu_system_time, label 
     u 1:2 t 'Cpu user time'   lw 2, "" \
     u 1:3 t 'Cpu system time' lw 2, "" \
     u 1:3:4 w labels offset 0,1 rotate left notitle, \
-     "< sqlite3 stats.db 'select datetime, resident_size_MB from avg_m;'" \
+     "< sqlite3 $dbfile 'select datetime, resident_size_MB from avg_m;'" \
     u 1:2 axis x1y2 t 'Rss'
 
 set size 0.5, 1

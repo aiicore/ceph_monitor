@@ -46,38 +46,38 @@ def log_into_db(sql_conn, mode, node_stat, label=""):
 
 
 def show_process(key):
-  if [1 for proc in proc_filter if key[:3] in proc] or int(key[-2:]) in show_stats_for:
+  (name, id) = key.split();
+  if name in proc_filter or name == "ceph-osd" and int(id) in show_stats_for:
     return 1
   return 0
-
 
 # show memory stat
 def stat_mem(node_stat):
   rss_sum = 0
-  print 'PROC         MINOR    MAJOR           RSS  # x 10M'
+  print("PROC         MINOR    MAJOR           RSS  # x 10M")
   s_sum = {}
   s_sum['min_f'] = 0
   s_sum['maj_f'] = 0
   s_sum['rss'] = 0
   for key in sorted(node_stat):
     if show_process(key):
-      print '{0} {1:>10}   {2:>6}    {3:>10}  {4:<}'. format(
-             key,
+      print("{0} {1:>10}   {2:>6}    {3:>10}  {4:<}". format(
+             key.split('-')[1],
              node_stat[key]['min_f'],
              node_stat[key]['maj_f'],
              node_stat[key]['rss'],                       # one '#' is 10 MB
              "#" * (node_stat[key]['rss'] / 1024 / 1024 / 10)
-      )
+      ))
       rss_sum += node_stat[key]['rss']
       s_sum['min_f'] += int(node_stat[key]['min_f'])
       s_sum['maj_f'] += int(node_stat[key]['maj_f'])
       s_sum['rss']   += node_stat[key]['rss']
-  print 'Sum: {0:>13} {1:>8} {2:>13}  {3} MB'.format(s_sum['min_f'], s_sum['maj_f'],
-                                                        s_sum['rss'], s_sum['rss'] / 1024 / 1024)
+  print("Sum: {0:>13} {1:>8} {2:>13}  {3} MB".format(s_sum['min_f'], s_sum['maj_f'],
+                                                     s_sum['rss'], s_sum['rss'] / 1024 / 1024))
 
 # show io stat
 def stat_io(node_stat):
-  print 'PROC              read()      read_bytes         write()     write_bytes'
+  print("PROC              read()      read_bytes         write()     write_bytes")
   s_sum = {}
   s_sum['io_rd'] = 0
   s_sum['io_rb'] = 0
@@ -85,24 +85,24 @@ def stat_io(node_stat):
   s_sum['io_wb'] = 0
   for key in sorted(node_stat):
     if show_process(key):
-      print '{0}    {1:>13}   {2:>13}   {3:>13}   {4:>13}'. format(
-             key,
+      print("{0}    {1:>13}   {2:>13}   {3:>13}   {4:>13}". format(
+             key.split('-')[1],
              node_stat[key]['io_rd'],
              node_stat[key]['io_rb'],
              node_stat[key]['io_wr'],
              node_stat[key]['io_wb']
-      )
+      ))
       s_sum['io_rd'] += node_stat[key]['io_rd']
       s_sum['io_rb'] += node_stat[key]['io_rb']
       s_sum['io_wr'] += node_stat[key]['io_wr']
       s_sum['io_wb'] += node_stat[key]['io_wb']
-  print 'Sum      {0:>15} {1:>15} {2:>15} {3:>15}'.format(s_sum['io_rd'], s_sum['io_rb'],
-                                                          s_sum['io_wr'], s_sum['io_wb'])
+  print("Sum      {0:>15} {1:>15} {2:>15} {3:>15}".format(s_sum['io_rd'], s_sum['io_rb'],
+                                                          s_sum['io_wr'], s_sum['io_wb']))
 
 
 # show cpu time
 def stat_cpu(node_stat):
-  print 'PROC     CTX_I  CTX_V    CPU usr     CPU sys'
+  print("PROC     CTX_I  CTX_V    CPU usr     CPU sys")
   s_sum = {}
   s_sum['ctx_i'] = 0
   s_sum['ctx_v'] = 0
@@ -110,19 +110,19 @@ def stat_cpu(node_stat):
   s_sum['cpu_sys'] = 0
   for key in sorted(node_stat):
     if show_process(key):
-      print '%s  %5d  %5d  %09.4f   %09.4f' % (
-             key,
+      print("{0}  {1:>5}  {2:>5}  {3:>9.4f}   {4:>9.4f}".format(
+             key.split('-')[1],
              node_stat[key]['ctx_i'],
              node_stat[key]['ctx_v'],
              node_stat[key]['cpu_usr'],
              node_stat[key]['cpu_sys']
-      )
+      ))
     s_sum['ctx_i']    += node_stat[key]['ctx_i']
     s_sum['ctx_v']    += node_stat[key]['ctx_v']
     s_sum['cpu_usr']  += node_stat[key]['cpu_usr']
     s_sum['cpu_sys']  += node_stat[key]['cpu_sys']
-  print 'Sum     %6d %6d %10.4f  %10.4f' % (s_sum['ctx_i'], s_sum['ctx_v'],
-                                            s_sum['cpu_usr'], s_sum['cpu_sys'])
+  print("Sum     {0:>6} {1:>6} {2:>10.4f}  {3:>10.4f}".format(s_sum['ctx_i'], s_sum['ctx_v'],
+                                                              s_sum['cpu_usr'], s_sum['cpu_sys']))
 
 
 # parse ranges in config file
@@ -135,7 +135,7 @@ def get_range(s):
   for p1 in s.split(' '):
     if '-' in p1:
       p2 = p1.split('-')
-      ret.extend(range(int(p2[0]), int(p2[1]) + 1) )
+      ret.extend(range(int(p2[0]), int(p2[1]) + 1))
     else:
       ret.extend(p1)
   return ret
@@ -150,7 +150,7 @@ def remote_mon(mode, track_process):
   for proc in psutil.process_iter():
     if proc.name in track_process:
       try:
-        key = "%s %03d" % (proc.name[-3:],int(proc.cmdline[2]))
+        key = "{0} {1:>3}".format(proc.name, proc.cmdline[2])
       except psutil.NoSuchProcess:
         continue
       if mode == 'm':
@@ -267,6 +267,10 @@ nodes = []
 for node in node_list:
   nodes.append(pp.Server(ppservers=(node,)))
 
+for node in nodes:
+  # disable local (mgmt) dispatch
+  node.set_ncpus(0)
+
 # give some time to connect
 #time.sleep(1)
 
@@ -290,9 +294,6 @@ try:
     # submit job to workers
     workers = []
     for node in nodes:
-      # disable local (mgmt) dispatch
-      node.set_ncpus(0)
-
       # job submit, job result will be in workers array
       workers.append(node.submit(remote_mon, (mode, proc_list), (), ("psutil",)))
 
@@ -318,7 +319,7 @@ try:
     if run_once:
       raise KeyboardInterrupt
 except KeyboardInterrupt:
-  print "Ctrl c, finishing ..."
+  print("Ctrl c, finishing ...")
   pass
 
 for node in nodes:
