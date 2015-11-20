@@ -147,36 +147,64 @@ def get_range(s):
 # fetch data from node
 def remote_mon(mode, track_process):
   node_stat = {}
-  for proc in psutil.process_iter():
-    if proc.name in track_process:
-      try:
-        key = "{0} {1:>3}".format(proc.name, proc.cmdline[2])
-      except psutil.NoSuchProcess:
-        continue
-      if mode == 'm':
-        mem_page_flt = open('/proc/%d/stat' % proc.pid).readline().split()[9:12]
-        node_stat[key] = {
-          'rss'  : proc.get_memory_info().rss,
-          'min_f': mem_page_flt[0],
-          'maj_f': mem_page_flt[2],
-        }
-      elif mode == 'i': 
-        node_stat[key] = {
-          'io_rd': proc.get_io_counters().read_count,
-          'io_rb': proc.get_io_counters().read_bytes,
-          'io_wr': proc.get_io_counters().write_count,
-          'io_wb': proc.get_io_counters().write_bytes,
-        }
-      elif mode == 'c': 
-        node_stat[key] = {
-          'ctx_i': proc.get_num_ctx_switches().involuntary,
-          'ctx_v': proc.get_num_ctx_switches().voluntary,
-          'cpu_usr': proc.get_cpu_times().user,
-          'cpu_sys': proc.get_cpu_times().system,
-        }
 
+  if psutil.version_info < (2,0):
+    for proc in psutil.process_iter():
+      if proc.name in track_process:
+        try:
+          key = "{0} {1:>3}".format(proc.name, proc.cmdline[2])
+        except psutil.NoSuchProcess:
+          continue
+        if mode == 'm':
+          mem_page_flt = open('/proc/%d/stat' % proc.pid).readline().split()[9:12]
+          node_stat[key] = {
+            'rss'  : proc.get_memory_info().rss,
+            'min_f': mem_page_flt[0],
+            'maj_f': mem_page_flt[2],
+          }
+        elif mode == 'i': 
+          node_stat[key] = {
+            'io_rd': proc.get_io_counters().read_count,
+            'io_rb': proc.get_io_counters().read_bytes,
+            'io_wr': proc.get_io_counters().write_count,
+            'io_wb': proc.get_io_counters().write_bytes,
+          }
+        elif mode == 'c': 
+          node_stat[key] = {
+            'ctx_i': proc.get_num_ctx_switches().involuntary,
+            'ctx_v': proc.get_num_ctx_switches().voluntary,
+            'cpu_usr': proc.get_cpu_times().user,
+            'cpu_sys': proc.get_cpu_times().system,
+          }
+  else:
+    for proc in psutil.process_iter():
+      if proc.name() in track_process:
+        try:
+          key = "{0} {1:>3}".format(proc.name(), proc.cmdline()[2])
+        except psutil.NoSuchProcess:
+          continue
+        if mode == 'm':
+          mem_page_flt = open('/proc/%d/stat' % proc.pid).readline().split()[9:12]
+          node_stat[key] = {
+            'rss'  : proc.memory_info().rss,
+            'min_f': mem_page_flt[0],
+            'maj_f': mem_page_flt[2],
+          }
+        elif mode == 'i': 
+          node_stat[key] = {
+            'io_rd': proc.io_counters().read_count,
+            'io_rb': proc.io_counters().read_bytes,
+            'io_wr': proc.io_counters().write_count,
+            'io_wb': proc.io_counters().write_bytes,
+          }
+        elif mode == 'c': 
+          node_stat[key] = {
+            'ctx_i': proc.num_ctx_switches().involuntary,
+            'ctx_v': proc.num_ctx_switches().voluntary,
+            'cpu_usr': proc.cpu_times().user,
+            'cpu_sys': proc.cpu_times().system,
+          }
   return node_stat
-
 
 
 ###############################################################################
