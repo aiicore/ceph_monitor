@@ -60,11 +60,10 @@
   From client perspective: pp, time, sys, select, ConfigParser, os, argparse
   sqlite3, string (maketrans).
  
-  Checkout psutil version! There was a change in name of the methods, this code
-  works with:
-  - CentOs 6.6
+  This code should work with:
+  - CentOs 6.6, python 2.6/2.7
   - Parallel Python Network Server (pp-1.5.7)
-  - psutil 0.6.1
+  - any psutil version
   
 ###############################################################################
   3. Installation
