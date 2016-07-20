@@ -320,7 +320,7 @@ options = { 'i' : stat_io,
           }
 
 # main loop
-proc_id_pattern = re.compile('\s-i\s(\d+|[a-z])');
+proc_id_pattern = re.compile('\s-{1,2}i(?:|d)\s(\d+|[a-z])')
 try:
   while(1):
     if not quiet:

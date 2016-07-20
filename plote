@@ -7,7 +7,7 @@ end="$3"
 
 if [ -z "$dbfile" ] || [ -z "$begin" ] || [ -z "$end" ]; then
   echo "Use with $0 ppmon.db  \"YYYY-MM-DD HH:MM:SS\" \"YYYY-MM-DD HH:MM:SS\""
-  echo "\te.g. $0 tests_1.db \"2015-11-09 12:00:00\" \"2015-11-09 13:50:00\""
+  echo "e.g. $0 tests_1.db \"$(date +'%F %T')\" \"$(date +'%F %T')\""
   exit;
 fi;
 
